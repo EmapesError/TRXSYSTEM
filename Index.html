@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRXCOIN UPI Payment System</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 20px;
+            color: #444;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        input {
+            padding: 10px;
+            width: 100%;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .wallet-info {
+            text-align: center;
+        }
+
+        .qr-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .wallet-container {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-top: 20px;
+        }
+
+        .input-group input {
+            display: inline-block;
+            width: 40%;
+        }
+
+        .input-group button {
+            display: inline-block;
+            width: 40%;
+        }
+
+        .user-data {
+            text-align: center;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="loginContainer">
+        <h1>Welcome to TRXCOIN UPI Payment System</h1>
+        <div>
+            <h3>Login</h3>
+            <input type="text" id="username" placeholder="Enter Username" required>
+            <button class="btn" onclick="login()">Login</button>
+        </div>
+    </div>
+
+    <div class="container" id="walletContainer" style="display: none;">
+        <h3>Welcome, <span id="currentUser"></span></h3>
+        <div class="wallet-info">
+            <p>Balance: <span id="userBalance">100</span> TRX</p>
+        </div>
+        <div>
+            <button class="btn" onclick="generateQRCode()">Generate My QR Code</button>
+        </div>
+
+        <div class="qr-container" id="qrCodeContainer"></div>
+
+        <div class="wallet-container">
+            <h4>Transfer TRXCOIN</h4>
+            <div class="input-group">
+                <input type="number" id="transferAmount" placeholder="Amount to Transfer" min="1">
+                <input type="text" id="recipientUsername" placeholder="Recipient Username">
+                <button class="btn" onclick="transferTRX()">Transfer</button>
+            </div>
+        </div>
+
+        <div class="user-data">
+            <button class="btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+    <script>
+        window.onload = function() {
+            const userData = JSON.parse(localStorage.getItem('users')) || {};
+            if (userData.currentUser) {
+                document.getElementById('currentUser').innerText = userData.currentUser;
+                document.getElementById('walletContainer').style.display = 'block';
+                document.getElementById('loginContainer').style.display = 'none';
+                updateBalance(userData);
+            }
+        };
+
+        function login() {
+            const username = document.getElementById('username').value.trim();
+            if (username === "") {
+                alert("Please enter a username");
+                return;
+            }
+            
+            const userData = JSON.parse(localStorage.getItem('users')) || {};
+
+            if (!userData[username]) {
+                userData[username] = { balance: 100 }; // Assign 100 TRX on first login
+            }
+            
+            userData.currentUser = username;
+            localStorage.setItem('users', JSON.stringify(userData));
+
+            document.getElementById('currentUser').innerText = username;
+            document.getElementById('walletContainer').style.display = 'block';
+            document.getElementById('loginContainer').style.display = 'none';
+            updateBalance(userData);
+        }
+
+        function updateBalance(userData) {
+            const currentUser = userData.currentUser;
+            document.getElementById('userBalance').innerText = userData[currentUser].balance;
+        }
+
+        function generateQRCode() {
+            const currentUser = JSON.parse(localStorage.getItem('users')).currentUser;
+            const qrData = `TRXCOIN:${currentUser}`;
+            QRCode.toDataURL(qrData, function (err, url) {
+                document.getElementById('qrCodeContainer').innerHTML = `<img src="${url}" alt="QR Code" width="200">`;
+            });
+        }
+
+        function transferTRX() {
+            const amount = parseInt(document.getElementById('transferAmount').value);
+            const recipientUsername = document.getElementById('recipientUsername').value.trim();
+
+            if (isNaN(amount) || amount <= 0) {
+                alert("Enter a valid amount");
+                return;
+            }
+
+            if (recipientUsername === "") {
+                alert("Please enter recipient username");
+                return;
+            }
+
+            const userData = JSON.parse(localStorage.getItem('users'));
+            const currentUser = userData.currentUser;
+            const senderData = userData[currentUser];
+
+            if (senderData.balance < amount) {
+                alert("Insufficient balance");
+                return;
+            }
+
+            if (!userData[recipientUsername]) {
+                alert("Recipient user does not exist");
+                return;
+            }
+
+            senderData.balance -= amount;
+            userData[recipientUsername].balance += amount;
+
+            localStorage.setItem('users', JSON.stringify(userData));
+            alert(`Transaction successful! ${amount} TRX transferred to ${recipientUsername}`);
+
+            updateBalance(userData);
+        }
+
+        function logout() {
+            const userData = JSON.parse(localStorage.getItem('users'));
+            delete userData.currentUser;
+            localStorage.setItem('users', JSON.stringify(userData));
+
+            document.getElementById('walletContainer').style.display = 'none';
+            document.getElementById('loginContainer').style.display = 'block';
+            alert("You have logged out successfully.");
+        }
+    </script>
+</body>
+</html>

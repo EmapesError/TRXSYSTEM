@@ -123,6 +123,7 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
     <script>
+        // On page load, check for saved user data in localStorage
         window.onload = function() {
             const userData = JSON.parse(localStorage.getItem('users')) || {};
             if (userData.currentUser) {
@@ -133,19 +134,20 @@
             }
         };
 
+        // Login function
         function login() {
             const username = document.getElementById('username').value.trim();
             if (username === "") {
                 alert("Please enter a username");
                 return;
             }
-            
+
             const userData = JSON.parse(localStorage.getItem('users')) || {};
 
             if (!userData[username]) {
                 userData[username] = { balance: 100 }; // Assign 100 TRX on first login
             }
-            
+
             userData.currentUser = username;
             localStorage.setItem('users', JSON.stringify(userData));
 
@@ -155,11 +157,13 @@
             updateBalance(userData);
         }
 
+        // Update balance on UI
         function updateBalance(userData) {
             const currentUser = userData.currentUser;
             document.getElementById('userBalance').innerText = userData[currentUser].balance;
         }
 
+        // Generate QR code for the current user
         function generateQRCode() {
             const currentUser = JSON.parse(localStorage.getItem('users')).currentUser;
             const qrData = `TRXCOIN:${currentUser}`;
@@ -168,6 +172,7 @@
             });
         }
 
+        // Transfer TRXCOIN function
         function transferTRX() {
             const amount = parseInt(document.getElementById('transferAmount').value);
             const recipientUsername = document.getElementById('recipientUsername').value.trim();
@@ -186,25 +191,30 @@
             const currentUser = userData.currentUser;
             const senderData = userData[currentUser];
 
+            // Check sender balance
             if (senderData.balance < amount) {
                 alert("Insufficient balance");
                 return;
             }
 
+            // Check if recipient exists, if not create a new user with balance
             if (!userData[recipientUsername]) {
-                alert("Recipient user does not exist");
-                return;
+                userData[recipientUsername] = { balance: 100 }; // New user with initial 100 TRX
+                alert(`${recipientUsername} does not exist. A new account has been created with 100 TRX.`);
             }
 
+            // Deduct from sender and add to recipient
             senderData.balance -= amount;
             userData[recipientUsername].balance += amount;
 
+            // Update local storage
             localStorage.setItem('users', JSON.stringify(userData));
             alert(`Transaction successful! ${amount} TRX transferred to ${recipientUsername}`);
 
             updateBalance(userData);
         }
 
+        // Logout function
         function logout() {
             const userData = JSON.parse(localStorage.getItem('users'));
             delete userData.currentUser;

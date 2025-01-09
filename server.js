@@ -16,14 +16,16 @@ const redis = new Redis({
 app.use(cors());
 app.use(bodyParser.json());
 
-// API Endpoints
+// Test Redis Connection
+redis.on("connect", () => console.log("Connected to Redis!"));
+redis.on("error", (err) => console.error("Redis Error:", err));
 
-// User signup/login
+// API Endpoints
 app.post("/signup", async (req, res) => {
   const { username } = req.body;
   const userKey = `user:${username}`;
-  const existingUser = await redis.hgetall(userKey);
 
+  const existingUser = await redis.hgetall(userKey);
   if (existingUser.username) {
     return res.json({ message: "User already exists", user: existingUser });
   }
@@ -37,12 +39,11 @@ app.post("/signup", async (req, res) => {
   res.json({ message: "User created successfully", user: newUser });
 });
 
-// Get user data
 app.get("/user/:username", async (req, res) => {
   const { username } = req.params;
   const userKey = `user:${username}`;
-  const user = await redis.hgetall(userKey);
 
+  const user = await redis.hgetall(userKey);
   if (!user.username) {
     return res.status(404).json({ message: "User not found" });
   }
@@ -51,7 +52,6 @@ app.get("/user/:username", async (req, res) => {
   res.json(user);
 });
 
-// Send payment
 app.post("/payment", async (req, res) => {
   const { fromUser, toUser, amount } = req.body;
   const fromKey = `user:${fromUser}`;
@@ -69,12 +69,9 @@ app.post("/payment", async (req, res) => {
     return res.status(400).json({ message: "Insufficient balance" });
   }
 
-  // Deduct and add balance
   await redis.hincrby(fromKey, "balance", -amount);
   await redis.hincrby(toKey, "balance", amount);
-
   res.json({ message: `Transferred ${amount} coins from ${fromUser} to ${toUser}` });
 });
 
-// Start server
 app.listen(3000, () => console.log("Server running on http://localhost:3000"));

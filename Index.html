@@ -1,229 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRXCOIN UPI Payment System</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-
-        h1 {
-            text-align: center;
-            margin: 20px;
-            color: #444;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: auto;
-            padding: 30px;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-
-        .btn:hover {
-            background-color: #45a049;
-        }
-
-        input {
-            padding: 10px;
-            width: 100%;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-
-        .wallet-info {
-            text-align: center;
-        }
-
-        .qr-container {
-            display: flex;
-            justify-content: center;
-            margin-top: 30px;
-        }
-
-        .wallet-container {
-            margin-top: 30px;
-            text-align: center;
-        }
-
-        .input-group {
-            margin-top: 20px;
-        }
-
-        .input-group input {
-            display: inline-block;
-            width: 40%;
-        }
-
-        .input-group button {
-            display: inline-block;
-            width: 40%;
-        }
-
-        .user-data {
-            text-align: center;
-            margin-top: 30px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TunrixCoin</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f4f4f9;
+      padding: 20px;
+    }
+    input, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    #dashboard, #payment {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-    <div class="container" id="loginContainer">
-        <h1>Welcome to TRXCOIN UPI Payment System</h1>
-        <div>
-            <h3>Login</h3>
-            <input type="text" id="username" placeholder="Enter Username" required>
-            <button class="btn" onclick="login()">Login</button>
-        </div>
+  <div id="app">
+    <!-- Login/Signup -->
+    <div id="auth">
+      <h1>Welcome to TunrixCoin</h1>
+      <input type="text" id="username" placeholder="Enter Username">
+      <button onclick="signup()">Signup/Login</button>
     </div>
 
-    <div class="container" id="walletContainer" style="display: none;">
-        <h3>Welcome, <span id="currentUser"></span></h3>
-        <div class="wallet-info">
-            <p>Balance: <span id="userBalance">100</span> TRX</p>
-        </div>
-        <div>
-            <button class="btn" onclick="generateQRCode()">Generate My QR Code</button>
-        </div>
-
-        <div class="qr-container" id="qrCodeContainer"></div>
-
-        <div class="wallet-container">
-            <h4>Transfer TRXCOIN</h4>
-            <div class="input-group">
-                <input type="number" id="transferAmount" placeholder="Amount to Transfer" min="1">
-                <input type="text" id="recipientUsername" placeholder="Recipient Username">
-                <button class="btn" onclick="transferTRX()">Transfer</button>
-            </div>
-        </div>
-
-        <div class="user-data">
-            <button class="btn" onclick="logout()">Logout</button>
-        </div>
+    <!-- Dashboard -->
+    <div id="dashboard">
+      <h2>Welcome, <span id="user-name"></span></h2>
+      <p>Wallet Balance: <span id="balance"></span> TunrixCoins</p>
+      <button onclick="showPayment()">Send Payment</button>
+      <button onclick="logout()">Logout</button>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <!-- Payment -->
+    <div id="payment">
+      <h3>Send TunrixCoins</h3>
+      <input type="text" id="pay-to" placeholder="Enter Recipient Username">
+      <input type="number" id="amount" placeholder="Enter Amount">
+      <button onclick="sendPayment()">Send</button>
+      <button onclick="goBack()">Back</button>
+      <p id="payment-status"></p>
+    </div>
+  </div>
 
-    <script>
-        // On page load, check for saved user data in localStorage
-        window.onload = function() {
-            const userData = JSON.parse(localStorage.getItem('users')) || {};
-            if (userData.currentUser) {
-                document.getElementById('currentUser').innerText = userData.currentUser;
-                document.getElementById('walletContainer').style.display = 'block';
-                document.getElementById('loginContainer').style.display = 'none';
-                updateBalance(userData);
-            }
-        };
+  <script>
+    const API_BASE = "http://localhost:3000";
 
-        // Login function
-        function login() {
-            const username = document.getElementById('username').value.trim();
-            if (username === "") {
-                alert("Please enter a username");
-                return;
-            }
+    let currentUser = null;
 
-            const userData = JSON.parse(localStorage.getItem('users')) || {};
+    async function signup() {
+      const username = document.getElementById("username").value.trim();
+      if (!username) return alert("Username is required!");
 
-            if (!userData[username]) {
-                userData[username] = { balance: 100 }; // Assign 100 TRX on first login
-            }
+      const response = await fetch(`${API_BASE}/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username }),
+      });
+      const data = await response.json();
+      alert(data.message);
+      if (data.user) {
+        currentUser = data.user;
+        loadDashboard();
+      }
+    }
 
-            userData.currentUser = username;
-            localStorage.setItem('users', JSON.stringify(userData));
+    async function loadDashboard() {
+      document.getElementById("auth").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+      document.getElementById("user-name").innerText = currentUser.username;
+      document.getElementById("balance").innerText = currentUser.balance;
+    }
 
-            document.getElementById('currentUser').innerText = username;
-            document.getElementById('walletContainer').style.display = 'block';
-            document.getElementById('loginContainer').style.display = 'none';
-            updateBalance(userData);
-        }
+    async function showPayment() {
+      document.getElementById("dashboard").style.display = "none";
+      document.getElementById("payment").style.display = "block";
+    }
 
-        // Update balance on UI
-        function updateBalance(userData) {
-            const currentUser = userData.currentUser;
-            document.getElementById('userBalance').innerText = userData[currentUser].balance;
-        }
+    async function goBack() {
+      document.getElementById("payment").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+    }
 
-        // Generate QR code for the current user
-        function generateQRCode() {
-            const currentUser = JSON.parse(localStorage.getItem('users')).currentUser;
-            const qrData = `TRXCOIN:${currentUser}`;
-            QRCode.toDataURL(qrData, function (err, url) {
-                document.getElementById('qrCodeContainer').innerHTML = `<img src="${url}" alt="QR Code" width="200">`;
-            });
-        }
+    async function sendPayment() {
+      const payTo = document.getElementById("pay-to").value.trim();
+      const amount = parseInt(document.getElementById("amount").value);
 
-        // Transfer TRXCOIN function
-        function transferTRX() {
-            const amount = parseInt(document.getElementById('transferAmount').value);
-            const recipientUsername = document.getElementById('recipientUsername').value.trim();
+      if (!payTo || !amount || amount <= 0) {
+        return alert("Please enter valid details!");
+      }
 
-            if (isNaN(amount) || amount <= 0) {
-                alert("Enter a valid amount");
-                return;
-            }
+      const response = await fetch(`${API_BASE}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromUser: currentUser.username, toUser: payTo, amount }),
+      });
 
-            if (recipientUsername === "") {
-                alert("Please enter recipient username");
-                return;
-            }
+      const data = await response.json();
+      alert(data.message);
+      if (data.message.includes("Transferred")) {
+        const updatedUser = await fetch(`${API_BASE}/user/${currentUser.username}`);
+        currentUser = await updatedUser.json();
+        loadDashboard();
+      }
+    }
 
-            const userData = JSON.parse(localStorage.getItem('users'));
-            const currentUser = userData.currentUser;
-            const senderData = userData[currentUser];
-
-            // Check sender balance
-            if (senderData.balance < amount) {
-                alert("Insufficient balance");
-                return;
-            }
-
-            // Check if recipient exists, if not create a new user with balance
-            if (!userData[recipientUsername]) {
-                userData[recipientUsername] = { balance: 100 }; // New user with initial 100 TRX
-                alert(`${recipientUsername} does not exist. A new account has been created with 100 TRX.`);
-            }
-
-            // Deduct from sender and add to recipient
-            senderData.balance -= amount;
-            userData[recipientUsername].balance += amount;
-
-            // Update local storage
-            localStorage.setItem('users', JSON.stringify(userData));
-            alert(`Transaction successful! ${amount} TRX transferred to ${recipientUsername}`);
-
-            updateBalance(userData);
-        }
-
-        // Logout function
-        function logout() {
-            const userData = JSON.parse(localStorage.getItem('users'));
-            delete userData.currentUser;
-            localStorage.setItem('users', JSON.stringify(userData));
-
-            document.getElementById('walletContainer').style.display = 'none';
-            document.getElementById('loginContainer').style.display = 'block';
-            alert("You have logged out successfully.");
-        }
-    </script>
+    function logout() {
+      currentUser = null;
+      document.getElementById("auth").style.display = "block";
+      document.getElementById("dashboard").style.display = "none";
+      document.getElementById("payment").style.display = "none";
+    }
+  </script>
 </body>
 </html>

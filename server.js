@@ -5,6 +5,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 
 const app = express();
+const PORT = process.env.PORT || 3000; // Ensure it uses the correct port if deployed
 
 // GitHub API and Repository Details
 const GITHUB_API = "https://api.github.com";
@@ -136,6 +137,6 @@ app.post("/payment", async (req, res) => {
 });
 
 // Start Server
-app.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });

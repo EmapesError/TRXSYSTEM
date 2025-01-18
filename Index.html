@@ -3,119 +3,219 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TunrixCoin</title>
+  <title>TRX Payment System</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
   <style>
+    /* General Styles */
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Arial', sans-serif;
+      background-color: #f3f4f6;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 700px;
+      margin: 50px auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+    header {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: #fff;
+      padding: 20px;
       text-align: center;
-      background-color: #f4f4f9;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .form-group {
       padding: 20px;
     }
-    input, button {
-      margin: 10px;
-      padding: 10px;
-      font-size: 16px;
+    .form-group label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 10px;
     }
-    #dashboard, #payment {
-      display: none;
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    .form-group button {
+      width: 100%;
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .form-group button:hover {
+      background: #0056b3;
+    }
+    .success, .error {
+      padding: 15px;
+      margin: 20px;
+      text-align: center;
+      font-weight: bold;
+      border-radius: 5px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    footer {
+      text-align: center;
+      padding: 15px;
+      background: #f8f9fa;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <div id="app">
-    <!-- Login/Signup -->
-    <div id="auth">
-      <h1>Welcome to TunrixCoin</h1>
-      <input type="text" id="username" placeholder="Enter Username">
-      <button onclick="signup()">Signup/Login</button>
+  <div class="container">
+    <header>
+      <h1>TRX Payment System</h1>
+    </header>
+    <!-- Registration/Login Form -->
+    <div class="form-group" id="loginForm">
+      <h2>Login or Register</h2>
+      <label for="username">Enter Username</label>
+      <input type="text" id="username" placeholder="Enter your username (e.g., john)" />
+      <button onclick="loginOrRegister()">Continue</button>
     </div>
-
     <!-- Dashboard -->
-    <div id="dashboard">
-      <h2>Welcome, <span id="user-name"></span></h2>
-      <p>Wallet Balance: <span id="balance"></span> TunrixCoins</p>
-      <button onclick="showPayment()">Send Payment</button>
-      <button onclick="logout()">Logout</button>
-    </div>
-
-    <!-- Payment -->
-    <div id="payment">
-      <h3>Send TunrixCoins</h3>
-      <input type="text" id="pay-to" placeholder="Enter Recipient Username">
-      <input type="number" id="amount" placeholder="Enter Amount">
-      <button onclick="sendPayment()">Send</button>
-      <button onclick="goBack()">Back</button>
-      <p id="payment-status"></p>
+    <div class="form-group" id="dashboard" style="display: none;">
+      <h2>Welcome, <span id="welcomeUser"></span></h2>
+      <p>Your Payment ID: <strong id="paymentId"></strong></p>
+      <p>Balance: <strong id="balance">100 TRX</strong></p>
+      <hr />
+      <h3>Send Payment</h3>
+      <label for="receiverId">Recipient's Payment ID</label>
+      <input type="text" id="receiverId" placeholder="Enter recipient's Payment ID" />
+      <label for="amount">Amount (1 - 1,00,000 TRX)</label>
+      <input type="number" id="amount" placeholder="Enter amount to send" />
+      <button onclick="sendPayment()">Send Payment</button>
+      <div id="transactionMessage"></div>
     </div>
   </div>
+  <footer>
+    <p>&copy; 2025 TRX Payment System. All Rights Reserved.</p>
+  </footer>
 
   <script>
-    const API_BASE = "http://localhost:3000";
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID",
+    };
 
-    let currentUser = null;
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-    async function signup() {
+    // User login/register flow
+    async function loginOrRegister() {
       const username = document.getElementById("username").value.trim();
-      if (!username) return alert("Username is required!");
 
-      const response = await fetch(`${API_BASE}/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
-      });
-      const data = await response.json();
-      alert(data.message);
-      if (data.user) {
-        currentUser = data.user;
-        loadDashboard();
+      if (!username) {
+        alert("Please enter a valid username.");
+        return;
+      }
+
+      const paymentId = `${username}@trx`;
+
+      // Check if user exists in Firestore
+      const userDoc = await db.collection("users").doc(paymentId).get();
+
+      if (userDoc.exists) {
+        // If user exists, log them in
+        alert("Login successful!");
+        showDashboard(userDoc.data());
+      } else {
+        // Register a new user
+        await db.collection("users").doc(paymentId).set({
+          username: username,
+          balance: 100,  // Initial balance
+        });
+        alert("Account created successfully! You received 100 TRX as a bonus.");
+        showDashboard({ username, balance: 100 });
       }
     }
 
-    async function loadDashboard() {
-      document.getElementById("auth").style.display = "none";
+    // Show the dashboard after successful login/registration
+    async function showDashboard(userData) {
+      document.getElementById("loginForm").style.display = "none";
       document.getElementById("dashboard").style.display = "block";
-      document.getElementById("user-name").innerText = currentUser.username;
-      document.getElementById("balance").innerText = currentUser.balance;
+      document.getElementById("welcomeUser").innerText = userData.username;
+      document.getElementById("paymentId").innerText = `${userData.username}@trx`;
+      document.getElementById("balance").innerText = `${userData.balance} TRX`;
     }
 
-    async function showPayment() {
-      document.getElementById("dashboard").style.display = "none";
-      document.getElementById("payment").style.display = "block";
-    }
-
-    async function goBack() {
-      document.getElementById("payment").style.display = "none";
-      document.getElementById("dashboard").style.display = "block";
-    }
-
+    // Send payment to another user
     async function sendPayment() {
-      const payTo = document.getElementById("pay-to").value.trim();
-      const amount = parseInt(document.getElementById("amount").value);
+      const senderPaymentId = document.getElementById("paymentId").innerText;
+      const receiverPaymentId = document.getElementById("receiverId").value.trim();
+      const amount = parseFloat(document.getElementById("amount").value);
 
-      if (!payTo || !amount || amount <= 0) {
-        return alert("Please enter valid details!");
+      if (!receiverPaymentId) {
+        alert("Recipient's Payment ID is required.");
+        return;
       }
 
-      const response = await fetch(`${API_BASE}/payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromUser: currentUser.username, toUser: payTo, amount }),
+      if (!amount || amount < 1 || amount > 100000) {
+        alert("Enter a valid amount (1 - 1,00,000 TRX).");
+        return;
+      }
+
+      // Get user data from Firestore
+      const senderDoc = await db.collection("users").doc(senderPaymentId).get();
+      const receiverDoc = await db.collection("users").doc(receiverPaymentId).get();
+
+      if (!senderDoc.exists || !receiverDoc.exists) {
+        alert("Invalid sender or receiver.");
+        return;
+      }
+
+      const senderData = senderDoc.data();
+      const receiverData = receiverDoc.data();
+
+      if (senderData.balance < amount) {
+        alert("Insufficient balance.");
+        return;
+      }
+
+      // Update the sender's and receiver's balances
+      await db.collection("users").doc(senderPaymentId).update({
+        balance: senderData.balance - amount,
+      });
+      await db.collection("users").doc(receiverPaymentId).update({
+        balance: receiverData.balance + amount,
       });
 
-      const data = await response.json();
-      alert(data.message);
-      if (data.message.includes("Transferred")) {
-        const updatedUser = await fetch(`${API_BASE}/user/${currentUser.username}`);
-        currentUser = await updatedUser.json();
-        loadDashboard();
-      }
-    }
+      // Update balance on UI
+      document.getElementById("balance").innerText = `${senderData.balance - amount} TRX`;
 
-    function logout() {
-      currentUser = null;
-      document.getElementById("auth").style.display = "block";
-      document.getElementById("dashboard").style.display = "none";
-      document.getElementById("payment").style.display = "none";
+      // Show success message
+      document.getElementById("transactionMessage").innerHTML = `<div class="success">Successfully sent ${amount} TRX to ${receiverPaymentId}.</div>`;
     }
   </script>
 </body>
